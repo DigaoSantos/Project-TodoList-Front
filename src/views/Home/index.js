@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import * as S from './styles';
+
+import api from '../../service/api';
 
 //
 import Header from '../../components/Header'
@@ -8,10 +10,38 @@ import FilterCard from '../../components/FilterCard'
 import TaskCard from '../../components/TaskCard'
 
 function Home() {
-  const [filterActived, setFilterActived] = useState();
+  const [filterActived, setFilterActived] = useState('today');
+  const [tasks, setTasks] = useState([]);
+  const [lateCount, setLateCount] = useState();
+
+  async function loadTasks(){
+    await api.get(`/task/filter/${filterActived}/11:11:11:11:11:11`)
+    .then(response => {
+      setTasks(response.data)
+      console.log(response.data)
+    })
+  }
+
+  async function lateVerify(){
+    await api.get(`/task/filter/late/11:11:11:11:11:11`)
+    .then(response => {
+      setLateCount(response.data.length)
+      console.log('xx', response.data.length)
+    })
+  }
+
+  function notification() {
+    setFilterActived('late')
+  }
+
+  useEffect(() => {
+    loadTasks();
+    lateVerify();
+  }, [filterActived])
+
   return (
     <S.Container>
-      <Header/>
+      <Header lateCount={lateCount} clickNotification={notification}/>
         <S.FilterArea>
           <button type="button" onClick={() => setFilterActived('all')}>
             <FilterCard title="Todos" actived={filterActived == 'all'}/>
@@ -30,20 +60,14 @@ function Home() {
           </button>
         </S.FilterArea>
         <S.Title>
-          <h3>TAREFAS</h3>
+          <h3>{filterActived == 'late' ? 'TAREFAS ATRASADAS' : 'TAREFAS'}</h3>
         </S.Title>
         <S.Content>
-          <TaskCard />
-          <TaskCard />
-          <TaskCard />
-          <TaskCard />
-          <TaskCard />
-          <TaskCard />
-          <TaskCard />
-          <TaskCard />
-          <TaskCard />
-          <TaskCard />
-          <TaskCard />
+          {
+            tasks.map(t => (
+            <TaskCard type={t.type} title={t.title} when={t.when} />
+            ))
+          }
         </S.Content>
       <Footer />
     </S.Container>
