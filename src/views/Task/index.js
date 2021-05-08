@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
+import {Redirect} from 'react-router-dom';
 import * as S from './styles';
+import {format} from 'date-fns';
 
 import api from '../../service/api';
 
@@ -11,8 +13,8 @@ import TypeIcons from '../../utils/typeIcons'
 import iconCalendar from '../../assets/calendar.png'
 import iconClock from '../../assets/clock.png'
 
-function Task() {
-  const [lateCount, setLateCount] = useState();
+function Task({match}) {
+  const [redirect, setRedirect] = useState(false);
   const [type, setType] = useState();
   const [id, setId] = useState();
   const [done, setDone] = useState(false);
@@ -22,34 +24,76 @@ function Task() {
   const [hour, setHour] = useState();
   const [macaddress, setMacaddress] = useState('11:11:11:11:11:11');
 
-  async function lateVerify(){
-    await api.get(`/task/filter/late/11:11:11:11:11:11`)
+
+  async function LoadTaskDetails(){
+    await api.get(`/task/${match.params.id}`)
     .then(response => {
-      setLateCount(response.data.length)
-      console.log('xx', response.data.length)
+      setType(response.data.type)
+      setDone(response.data.done)
+      setTitle(response.data.title)
+      setDescription(response.data.description)
+      setDate(format(new Date(response.data.when), 'yyyy-MM-dd'))
+      setHour(format(new Date(response.data.when), 'HH:mm'))
     })
   }
 
   async function Save(){
-      await api.post('/task',
-      {
-          macaddress,
-          type,
-          title,
-          description,
-          when: `${date}T${hour}:00.000`
-      }).then(()=>
-        alert('Tarefa Cadastrada com Sucesso!')
-      )
+      //validacao dos dados
+      if(!title)
+        return alert("voce precisa informar o titulo da tarefa")
+      else if(!description)
+        return alert("voce precisa informar o titulo da tarefa")
+      else if(!type)
+        return alert("voce precisa tipo da tarefa")
+      else if(!date)
+        return alert("voce precisa informar a data da tarefa")
+      else if(!hour)
+        return alert("voce precisa informar a hora da tarefa")
+
+
+      if(match.params.id){
+        await api.put(`/task/${match.params.id}`,
+        {
+            macaddress,
+            done,
+            type,
+            title,
+            description,
+            when: `${date}T${hour}:00.000`
+        }).then(()=>
+          setRedirect(true)
+        )
+
+      }else{
+        await api.post('/task',
+        {
+            macaddress,
+            type,
+            title,
+            description,
+            when: `${date}T${hour}:00.000`
+        }).then(()=>
+          setRedirect(true)
+        )
+    }
+  }
+
+  async function Remove(){
+    const res = window.confirm('Deseja realmente remover a tarefa?')
+    if (res == true){
+      await api.delete(`/task/${match.params.id}`)
+      .then(() => setRedirect(true))
+    }
   }
 
   useEffect(() => {
-    lateVerify();
+    LoadTaskDetails();
   }, [])
 
   return (
     <S.Container>
-      <Header lateCount={lateCount} />
+      { redirect && <Redirect to="/" /> }
+      <Header />
        <S.Form>
            <S.TypeIcons>
                {//index foi colocado para tirar a posicao 0 do array
@@ -94,7 +138,7 @@ function Task() {
                    <input type="checkbox" checked={done} onChange={() => setDone(!done)}/>
                    <span>CONCLUÍDO</span>
                </div>
-               <button type="button">EXCLUIR</button>
+               {match.params.id && <button type="button" onClick={Remove}>EXCLUIR</button>}
            </S.Options>
 
            <S.Save>
